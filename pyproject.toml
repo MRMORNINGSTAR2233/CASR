@@ -1,0 +1,96 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "casr"
+version = "0.1.0"
+description = "Context-Aware, Secure Retrieval - A RAG system with security, role-based access control, and contextual retrieval"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+authors = [
+    { name = "Akshay Kumar" }
+]
+keywords = [
+    "rag",
+    "retrieval-augmented-generation",
+    "llm",
+    "security",
+    "rbac",
+    "context-aware",
+    "vector-search"
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "fastapi>=0.109.0",
+    "uvicorn[standard]>=0.27.0",
+    "pydantic>=2.5.0",
+    "pydantic-settings>=2.1.0",
+    "python-dotenv>=1.0.0",
+    "openai>=1.12.0",
+    "anthropic>=0.18.0",
+    "langchain>=0.1.0",
+    "langchain-openai>=0.0.5",
+    "langchain-anthropic>=0.1.0",
+    "langchain-community>=0.0.20",
+    "chromadb>=0.4.22",
+    "pinecone-client>=3.0.0",
+    "weaviate-client>=4.4.0",
+    "sentence-transformers>=2.3.0",
+    "tiktoken>=0.5.0",
+    "cohere>=4.47",
+    "numpy>=1.26.0",
+    "httpx>=0.26.0",
+    "python-jose[cryptography]>=3.3.0",
+    "passlib[bcrypt]>=1.7.4",
+    "python-multipart>=0.0.6",
+    "structlog>=24.1.0",
+    "tenacity>=8.2.0",
+    "aiofiles>=23.2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=4.1.0",
+    "black>=24.1.0",
+    "ruff>=0.1.14",
+    "mypy>=1.8.0",
+    "pre-commit>=3.6.0",
+]
+
+[project.scripts]
+casr = "api.main:run"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src", "api", "config"]
+
+[tool.black]
+line-length = 100
+target-version = ["py310", "py311", "py312"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+select = ["E", "F", "I", "N", "W", "UP"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
