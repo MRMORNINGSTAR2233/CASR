@@ -37,6 +37,8 @@ def check_dependencies():
     
     optional = [
         ("cohere", "Cohere"),
+        ("google.generativeai", "Google Gemini"),
+        ("groq", "Groq"),
         ("pinecone", "Pinecone"),
         ("weaviate", "Weaviate"),
         ("sentence_transformers", "Sentence Transformers"),
@@ -90,6 +92,8 @@ def check_api_keys():
         "OPENAI_API_KEY": "OpenAI",
         "ANTHROPIC_API_KEY": "Anthropic",
         "COHERE_API_KEY": "Cohere",
+        "GEMINI_API_KEY": "Google Gemini",
+        "GROQ_API_KEY": "Groq",
         "PINECONE_API_KEY": "Pinecone",
     }
     

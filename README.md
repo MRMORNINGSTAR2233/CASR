@@ -18,8 +18,8 @@ A production-ready Retrieval-Augmented Generation (RAG) system designed for ente
 
 ### Enterprise Integration
 - **Multi-Vector Store Support**: ChromaDB, Pinecone, Weaviate
-- **Multiple Embedding Providers**: OpenAI, Sentence Transformers, Cohere
-- **Multiple LLM Providers**: OpenAI, Anthropic Claude
+- **Multiple Embedding Providers**: OpenAI, Sentence Transformers, Cohere, Google Gemini
+- **Multiple LLM Providers**: OpenAI, Anthropic Claude, Google Gemini, Groq
 - **RESTful API**: FastAPI with OpenAPI documentation
 
 ## 📁 Project Structure

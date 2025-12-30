@@ -68,7 +68,7 @@ Answer only with the succinct context and nothing else."""
         Initialize the contextualizer.
         
         Args:
-            provider: LLM provider ("anthropic" or "openai")
+            provider: LLM provider ("anthropic", "openai", "gemini", or "groq")
             model: Model name (defaults based on provider)
             max_document_tokens: Max tokens for document context
             max_context_tokens: Max tokens for generated context
@@ -82,9 +82,21 @@ Answer only with the succinct context and nothing else."""
         if provider == "anthropic":
             self.model = model or "claude-3-haiku-20240307"
             self._client = Anthropic(api_key=settings.anthropic_api_key)
-        else:
+        elif provider == "openai":
             self.model = model or "gpt-4o-mini"
             self._client = OpenAI(api_key=settings.openai_api_key)
+        elif provider == "gemini":
+            self.model = model or "gemini-2.0-flash"
+            import google.generativeai as genai
+            genai.configure(api_key=settings.gemini_api_key)
+            self._genai = genai
+            self._gemini_model = genai.GenerativeModel(self.model)
+        elif provider == "groq":
+            self.model = model or "llama-3.3-70b-specdec"
+            from groq import Groq
+            self._client = Groq(api_key=settings.groq_api_key)
+        else:
+            raise ValueError(f"Unknown provider: {provider}")
     
     @retry(
         stop=stop_after_attempt(3),
@@ -154,6 +166,74 @@ Answer only with the succinct context and nothing else."""
         
         return response.choices[0].message.content.strip()
     
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=10)
+    )
+    def _generate_context_gemini(
+        self,
+        document_content: str,
+        chunk_content: str,
+        metadata: Optional[dict] = None
+    ) -> str:
+        """Generate context using Google Gemini."""
+        if metadata:
+            prompt = self.DOMAIN_PROMPT.format(
+                document_content=document_content,
+                chunk_content=chunk_content,
+                domain=metadata.get("domain", "general"),
+                title=metadata.get("title", "Untitled"),
+            )
+        else:
+            prompt = self.DEFAULT_PROMPT.format(
+                document_content=document_content,
+                chunk_content=chunk_content,
+            )
+        
+        response = self._gemini_model.generate_content(
+            prompt,
+            generation_config={
+                "max_output_tokens": self.max_context_tokens,
+                "temperature": 0.3,
+            }
+        )
+        
+        return response.text.strip()
+    
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=10)
+    )
+    def _generate_context_groq(
+        self,
+        document_content: str,
+        chunk_content: str,
+        metadata: Optional[dict] = None
+    ) -> str:
+        """Generate context using Groq."""
+        if metadata:
+            prompt = self.DOMAIN_PROMPT.format(
+                document_content=document_content,
+                chunk_content=chunk_content,
+                domain=metadata.get("domain", "general"),
+                title=metadata.get("title", "Untitled"),
+            )
+        else:
+            prompt = self.DEFAULT_PROMPT.format(
+                document_content=document_content,
+                chunk_content=chunk_content,
+            )
+        
+        response = self._client.chat.completions.create(
+            model=self.model,
+            max_tokens=self.max_context_tokens,
+            messages=[
+                {"role": "user", "content": prompt}
+            ],
+        )
+        
+        return response.choices[0].message.content.strip()
+    
     def _truncate_document(self, content: str) -> str:
         """Truncate document to fit within token limits."""
         # Approximate token count (4 chars per token)
@@ -190,12 +270,26 @@ Answer only with the succinct context and nothing else."""
                 chunk_content=chunk.content,
                 metadata=metadata,
             )
-        else:
+        elif self.provider == "openai":
             return self._generate_context_openai(
                 document_content=document_content,
                 chunk_content=chunk.content,
                 metadata=metadata,
             )
+        elif self.provider == "gemini":
+            return self._generate_context_gemini(
+                document_content=document_content,
+                chunk_content=chunk.content,
+                metadata=metadata,
+            )
+        elif self.provider == "groq":
+            return self._generate_context_groq(
+                document_content=document_content,
+                chunk_content=chunk.content,
+                metadata=metadata,
+            )
+        else:
+            raise ValueError(f"Unknown provider: {self.provider}")
     
     def contextualize_chunk(
         self,

@@ -21,6 +21,7 @@ class EmbeddingProvider(str, Enum):
     OPENAI = "openai"
     SENTENCE_TRANSFORMERS = "sentence-transformers"
     COHERE = "cohere"
+    GEMINI = "gemini"
 
 
 class Embedder:
@@ -65,6 +66,13 @@ class Embedder:
                 import cohere
                 self._client = cohere.Client(settings.cohere_api_key)
                 self.dimension = 1024
+            
+            case EmbeddingProvider.GEMINI:
+                self.model = model or "models/text-embedding-004"
+                import google.generativeai as genai
+                genai.configure(api_key=settings.gemini_api_key)
+                self._genai = genai
+                self.dimension = 768
     
     def _get_openai_dimension(self, model: str) -> int:
         """Get embedding dimension for OpenAI model."""
@@ -110,6 +118,22 @@ class Embedder:
         )
         return response.embeddings
     
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=10)
+    )
+    def _embed_gemini(self, texts: list[str]) -> list[list[float]]:
+        """Generate embeddings using Google Gemini."""
+        embeddings = []
+        for text in texts:
+            result = self._genai.embed_content(
+                model=self.model,
+                content=text,
+                task_type="retrieval_document",
+            )
+            embeddings.append(result['embedding'])
+        return embeddings
+    
     def embed_texts(self, texts: list[str]) -> list[list[float]]:
         """
         Generate embeddings for a list of texts.
@@ -136,6 +160,8 @@ class Embedder:
                     embeddings = self._embed_sentence_transformers(batch)
                 case EmbeddingProvider.COHERE:
                     embeddings = self._embed_cohere(batch)
+                case EmbeddingProvider.GEMINI:
+                    embeddings = self._embed_gemini(batch)
                 case _:
                     raise ValueError(f"Unknown provider: {self.provider}")
             
@@ -176,6 +202,15 @@ class Embedder:
                 input_type="search_query",
             )
             return response.embeddings[0]
+        
+        if self.provider == EmbeddingProvider.GEMINI:
+            # Gemini has a special task type for queries
+            result = self._genai.embed_content(
+                model=self.model,
+                content=query,
+                task_type="retrieval_query",
+            )
+            return result['embedding']
         
         return self.embed_text(query)
     

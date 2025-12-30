@@ -31,6 +31,7 @@ class EmbeddingProvider(str, Enum):
     OPENAI = "openai"
     SENTENCE_TRANSFORMERS = "sentence-transformers"
     COHERE = "cohere"
+    GEMINI = "gemini"
 
 
 class Settings(BaseSettings):
@@ -64,6 +65,16 @@ class Settings(BaseSettings):
     cohere_api_key: Optional[str] = Field(
         default=None,
         description="Cohere API key for reranking"
+    )
+    
+    gemini_api_key: Optional[str] = Field(
+        default=None,
+        description="Google Gemini API key for LLM and embeddings"
+    )
+    
+    groq_api_key: Optional[str] = Field(
+        default=None,
+        description="Groq API key for fast LLM inference"
     )
     
     # ==========================================================================

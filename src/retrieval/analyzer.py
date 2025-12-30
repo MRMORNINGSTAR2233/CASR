@@ -86,7 +86,7 @@ Which interpretation is most likely given the context? Respond with just the sel
         Initialize the query analyzer.
         
         Args:
-            provider: LLM provider ("anthropic" or "openai")
+            provider: LLM provider ("anthropic", "openai", "gemini", or "groq")
             model: Model name
         """
         self.provider = provider
@@ -95,9 +95,21 @@ Which interpretation is most likely given the context? Respond with just the sel
         if provider == "anthropic":
             self.model = model or "claude-3-haiku-20240307"
             self._client = Anthropic(api_key=settings.anthropic_api_key)
-        else:
+        elif provider == "openai":
             self.model = model or "gpt-4o-mini"
             self._client = OpenAI(api_key=settings.openai_api_key)
+        elif provider == "gemini":
+            self.model = model or "gemini-2.0-flash"
+            import google.generativeai as genai
+            genai.configure(api_key=settings.gemini_api_key)
+            self._genai = genai
+            self._gemini_model = genai.GenerativeModel(self.model)
+        elif provider == "groq":
+            self.model = model or "llama-3.3-70b-specdec"
+            from groq import Groq
+            self._client = Groq(api_key=settings.groq_api_key)
+        else:
+            raise ValueError(f"Unknown provider: {provider}")
     
     @retry(
         stop=stop_after_attempt(3),
@@ -126,11 +138,47 @@ Which interpretation is most likely given the context? Respond with just the sel
         )
         return response.choices[0].message.content
     
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=10)
+    )
+    def _call_gemini(self, prompt: str) -> str:
+        """Call Google Gemini API."""
+        response = self._gemini_model.generate_content(
+            prompt + "\n\nRespond with valid JSON only.",
+            generation_config={
+                "max_output_tokens": 1000,
+                "temperature": 0.3,
+                "response_mime_type": "application/json",
+            }
+        )
+        return response.text
+    
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=10)
+    )
+    def _call_groq(self, prompt: str) -> str:
+        """Call Groq API."""
+        response = self._client.chat.completions.create(
+            model=self.model,
+            max_tokens=1000,
+            messages=[{"role": "user", "content": prompt + "\n\nRespond with valid JSON only."}],
+        )
+        return response.choices[0].message.content
+    
     def _call_llm(self, prompt: str) -> str:
         """Call the configured LLM."""
         if self.provider == "anthropic":
             return self._call_anthropic(prompt)
-        return self._call_openai(prompt)
+        elif self.provider == "openai":
+            return self._call_openai(prompt)
+        elif self.provider == "gemini":
+            return self._call_gemini(prompt)
+        elif self.provider == "groq":
+            return self._call_groq(prompt)
+        else:
+            raise ValueError(f"Unknown provider: {self.provider}")
     
     def _parse_analysis_response(self, response: str) -> dict[str, Any]:
         """Parse the LLM response into a structured dict."""
